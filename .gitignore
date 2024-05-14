@@ -1,0 +1,12 @@
+# LibreOffice temporary files
+# instdir/.lock
+# instdir/cache/
+# instdir/user/
+
+# LibreOffice install directory
+instdir/
+
+# LibreOffice UNO API header
+include/
+
+build/
