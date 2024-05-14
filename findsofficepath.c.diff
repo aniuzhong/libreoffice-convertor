@@ -1,0 +1,29 @@
+diff --git a/cppuhelper/source/findsofficepath.c b/cppuhelper/source/findsofficepath.c
+index a46cfb88a1e7..677e0d5d1d50 100644
+--- a/cppuhelper/source/findsofficepath.c
++++ b/cppuhelper/source/findsofficepath.c
+@@ -29,6 +29,9 @@
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+
++EXTERN_C IMAGE_DOS_HEADER __ImageBase;
++#define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
++
+ /*
+  * Gets the installation path from the Windows Registry for the specified
+  * registry key.
+@@ -94,6 +97,14 @@ static wchar_t* platformSpecific(void)
+     /* get the installation path from the UNO_PATH environment variable */
+     wchar_t* env = _wgetenv(UNOPATHVARNAME);
+
++    HMODULE hModule = HINST_THISCOMPONENT;
++    wchar_t buffer[MAX_PATH] = { 0 };
++    GetModuleFileNameW(hModule, buffer, MAX_PATH);
++    wchar_t* pos = wcsrchr(buffer, L'\\');
++    if (pos)
++        *pos = L'\0'; // Null-terminate at the last backslash
++    env = buffer;
++
+     if (env && env[0])
+     {
+         return wcsdup(env);
