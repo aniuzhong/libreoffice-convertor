@@ -22,6 +22,61 @@ using css::uno::Sequence;
 using css::beans::PropertyValue;
 using css::frame::XStorable;
 
+#ifdef _WIN32
+#include <windows.h>
+#include <TlHelp32.h>
+
+int64_t get_pid_by_name(const std::string& name)
+{
+    std::map<std::string, int64_t> m;
+
+    PROCESSENTRY32 entry32;
+    entry32.dwSize = sizeof(entry32);
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE)
+    {
+        std::cout << "CreateToolhelp32Snapshot failed\n";
+        return -1;
+    }
+
+    BOOL res = Process32First(snapshot, &entry32);
+    while (res)
+    {
+        std::string exe_name = entry32.szExeFile;
+        int64_t pid = entry32.th32ProcessID;
+        m.insert({ exe_name, pid });
+        res = Process32Next(snapshot, &entry32);
+    }
+
+    for (const auto [exe_name, pid] : m)
+        if (exe_name == name)
+            return pid;
+
+    return -1;
+}
+
+void kill_by_pid(int64_t pid)
+{
+    if (pid < 0)
+        return;
+
+    HANDLE process = nullptr;
+    process = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (process == NULL)
+    {
+        std::cout << "OpenProcess failed\n";
+        return;
+    }
+
+    if (TerminateProcess(process, 0) == 0)
+    {
+        std::cout << "TerminateProcess failed\n";
+        return;
+    }
+}
+#endif
+
 void rm_file_lock(const std::string& infile)
 {
     std::filesystem::path infile1(infile);
@@ -56,6 +111,15 @@ int main(int argc, char* argv[]) try
     rtl::OUString ustrOutputUrl, ustrInputUrl;
     osl::FileBase::getFileURLFromSystemPath(ustrInputSystemPath, ustrInputUrl);
     osl::FileBase::getFileURLFromSystemPath(ustrOutputSystemPath, ustrOutputUrl);
+
+#ifdef _WIN32
+    int64_t soffice_bin_pid = get_pid_by_name("soffice.bin");
+    if (soffice_bin_pid > 0)
+    {
+        std::cout << "try to kill soffice.bin " << soffice_bin_pid << " (once) " << std::endl;
+        kill_by_pid(soffice_bin_pid);
+    }
+#endif
 
     Reference<XComponentContext> xComponentContext = cppu::bootstrap();
     auto xMultiComponentFactory = xComponentContext->getServiceManager();
