@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <filesystem>
 
 #include <osl/file.hxx>
 #include <rtl/process.h>
@@ -21,18 +22,37 @@ using css::uno::Sequence;
 using css::beans::PropertyValue;
 using css::frame::XStorable;
 
+void rm_file_lock(const std::string& infile)
+{
+    std::filesystem::path infile1(infile);
+
+    std::string indir = infile1.parent_path().string();
+    for (const auto& entry : std::filesystem::directory_iterator(indir))
+    {
+        if (entry.path().extension() == ".pptx#" ||
+            entry.path().extension() == ".ppt#")
+        {
+            bool res = std::filesystem::remove(entry.path());
+            if (res)
+                std::cout << "remove file " << entry.path() << std::endl;
+        }
+    }
+}
+
 int main(int argc, char* argv[]) try
 {
-    cmdline::parser p;
+    cmdline::parser prsr;
 
-    p.add<std::string>("infile", 'i', "input file. (e.g. C:/in.pptx or C:\\in.pptx)", true, "");
-    p.add<std::string>("outfile", 'o', "output file. (e.g. C:/out.pdf or C:\\out.pdf)", true, "");
-    p.add<std::string>("password", 'p', "password of document (if need)", false, "");
+    prsr.add<std::string>("infile", 'i', "input file. (e.g. C:/in.pptx or C:\\in.pptx)", true, "");
+    prsr.add<std::string>("outfile", 'o', "output file. (e.g. C:/out.pdf or C:\\out.pdf)", true, "");
+    prsr.add<std::string>("password", 'p', "password of document (if need)", false, "");
 
-    p.parse_check(argc, argv);
+    prsr.parse_check(argc, argv);
+    
+    rm_file_lock(prsr.get<std::string>("infile").c_str());
 
-    auto ustrInputSystemPath = rtl::OUString::createFromAscii(p.get<std::string>("infile").c_str());
-    auto ustrOutputSystemPath = rtl::OUString::createFromAscii(p.get<std::string>("outfile").c_str());
+    auto ustrInputSystemPath = rtl::OUString::createFromAscii(prsr.get<std::string>("infile").c_str());
+    auto ustrOutputSystemPath = rtl::OUString::createFromAscii(prsr.get<std::string>("outfile").c_str());
     rtl::OUString ustrOutputUrl, ustrInputUrl;
     osl::FileBase::getFileURLFromSystemPath(ustrInputSystemPath, ustrInputUrl);
     osl::FileBase::getFileURLFromSystemPath(ustrOutputSystemPath, ustrOutputUrl);
@@ -46,14 +66,14 @@ int main(int argc, char* argv[]) try
                                     css::uno::UNO_QUERY);
     if (!xDesktop.is())
     {
-        std::cout << "XDesktop could not instantiate.\n";
+        std::cout << "XDesktop could not instantiate\n";
         return EXIT_FAILURE;
     }
 
     Reference<XComponentLoader> xComponentLoader(xDesktop, css::uno::UNO_QUERY);
     if (!xComponentLoader.is())
     {
-        std::cout << "XComponentLoader could not instantiate.\n";
+        std::cout << "XComponentLoader could not instantiate\n";
         return EXIT_FAILURE;
     }
 
@@ -66,6 +86,8 @@ int main(int argc, char* argv[]) try
                                             sal_Int32(0),
                                             loadProperties);
 
+    std::cout << ustrInputSystemPath << " has been loaded\n";
+
     Reference<XStorable> xStorable(xComponent, css::uno::UNO_QUERY_THROW);
     Sequence<PropertyValue> storeProps(3);
     storeProps[0].Name = "FilterName";
@@ -76,7 +98,8 @@ int main(int argc, char* argv[]) try
     storeProps[2].Value <<= sal_Int32(1);
     xStorable->storeToURL(ustrOutputUrl, storeProps);
 
-    std::cout << "done.\n";
+    std::cout << "conversion done\n";
+    std::cout << "file has been written in " << ustrOutputSystemPath << '\n';
 
     return EXIT_SUCCESS;
 }
