@@ -20,6 +20,7 @@ link_directories(${SDK_LIBRARY_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/cmdline)
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/instdir/program)
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/instdir/program)
 
 add_executable(LOConvertor convertor.cpp)
 target_link_directories(LOConvertor PRIVATE ${SDK_LIBRARY_DIR})
